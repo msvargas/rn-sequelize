@@ -7,4 +7,4 @@
  */
 require("error-polyfill");
 global.Buffer = global.Buffer || require("buffer").Buffer;
-module.exports = require("./lib/sequelize");
+module.exports = require("./dist/sequelize");

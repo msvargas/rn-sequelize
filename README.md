@@ -12,8 +12,10 @@
 [![node](https://badgen.net/npm/node/sequelize)](https://www.npmjs.com/package/sequelize)
 [![License](https://badgen.net/github/license/sequelize/sequelize)](https://github.com/sequelize/sequelize/blob/master/LICENSE)
 [![semantic-release](https://img.shields.io/badge/%20%20%F0%9F%93%A6%F0%9F%9A%80-semantic--release-e10079.svg)](https://github.com/semantic-release/semantic-release)
-`
+
 This port to use with react native and expo.
+
+NOTE: compatible with web but replace `dialectModule: SQLite` with `dialectModule: window`, and websql API in browser is limited, catch all queries
 
 ## Example
 ```js

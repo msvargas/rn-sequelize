@@ -21,7 +21,7 @@
   "main": "index.js",
   "types": "types",
   "files": [
-    "lib",
+    "dist",
     "types/index.d.ts",
     "types/lib"
   ],
@@ -50,6 +50,7 @@
   "devDependencies": {
     "@babel/cli": "^7.7.4",
     "@babel/core": "^7.7.4",
+    "@babel/plugin-transform-classes": "^7.7.4",
     "@babel/preset-env": "^7.7.4",
     "@babel/preset-react": "^7.7.4",
     "@commitlint/cli": "^8.2.0",
@@ -132,7 +133,7 @@
     "tag": "latest"
   },
   "scripts": {
-    "build": "babel lib --out-dir dist --source-maps inline --minified --copy-files",
+    "build": "babel lib --out-dir dist --copy-files --presets @babel/preset-react --plugins @babel/plugin-transform-classes",
     "lint": "eslint lib test --quiet",
     "lint-docs": "markdownlint docs",
     "test": "npm run teaser && npm run test-unit && npm run test-integration",

@@ -1,0 +1,448 @@
+'use strict';
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+const _ = require('lodash');
+
+const Utils = require('./utils');
+
+const sequelizeError = require('./errors');
+
+const Promise = require('./promise');
+
+const DataTypes = require('./data-types');
+
+const BelongsTo = require('./associations/belongs-to');
+
+const validator = require('./utils/validator-extras').validator;
+/**
+ * Instance Validator.
+ *
+ * @param {Instance} modelInstance The model instance.
+ * @param {Object} options A dictionary with options.
+ *
+ * @private
+ */
+
+
+let InstanceValidator =
+/*#__PURE__*/
+function () {
+  function InstanceValidator(modelInstance, options) {
+    _classCallCheck(this, InstanceValidator);
+
+    options = _.clone(options) || {};
+
+    if (options.fields && !options.skip) {
+      options.skip = _.difference(Object.keys(modelInstance.constructor.rawAttributes), options.fields);
+    } // assign defined and default options
+
+
+    this.options = _.defaults(options, {
+      skip: [],
+      hooks: true
+    });
+    this.modelInstance = modelInstance;
+    /**
+     * Exposes a reference to validator.js. This allows you to add custom validations using `validator.extend`
+     * @name validator
+     * @private
+     */
+
+    this.validator = validator;
+    /**
+     *  All errors will be stored here from the validations.
+     *
+     * @type {Array} Will contain keys that correspond to attributes which will
+     *   be Arrays of Errors.
+     * @private
+     */
+
+    this.errors = [];
+    /**
+     * @type {boolean} Indicates if validations are in progress
+     * @private
+     */
+
+    this.inProgress = false;
+  }
+  /**
+   * The main entry point for the Validation module, invoke to start the dance.
+   *
+   * @returns {Promise}
+   * @private
+   */
+
+
+  _createClass(InstanceValidator, [{
+    key: "_validate",
+    value: function _validate() {
+      if (this.inProgress) throw new Error('Validations already in progress.');
+      this.inProgress = true;
+      return Promise.all([this._perAttributeValidators().reflect(), this._customValidators().reflect()]).then(() => {
+        if (this.errors.length) {
+          throw new sequelizeError.ValidationError(null, this.errors);
+        }
+      });
+    }
+    /**
+     * Invoke the Validation sequence and run validation hooks if defined
+     *   - Before Validation Model Hooks
+     *   - Validation
+     *   - On validation success: After Validation Model Hooks
+     *   - On validation failure: Validation Failed Model Hooks
+     *
+     * @returns {Promise}
+     * @private
+     */
+
+  }, {
+    key: "validate",
+    value: function validate() {
+      return this.options.hooks ? this._validateAndRunHooks() : this._validate();
+    }
+    /**
+     * Invoke the Validation sequence and run hooks
+     *   - Before Validation Model Hooks
+     *   - Validation
+     *   - On validation success: After Validation Model Hooks
+     *   - On validation failure: Validation Failed Model Hooks
+     *
+     * @returns {Promise}
+     * @private
+     */
+
+  }, {
+    key: "_validateAndRunHooks",
+    value: function _validateAndRunHooks() {
+      const runHooks = this.modelInstance.constructor.runHooks.bind(this.modelInstance.constructor);
+      return runHooks('beforeValidate', this.modelInstance, this.options).then(() => this._validate().catch(error => runHooks('validationFailed', this.modelInstance, this.options, error).then(newError => {
+        throw newError || error;
+      }))).then(() => runHooks('afterValidate', this.modelInstance, this.options)).return(this.modelInstance);
+    }
+    /**
+     * Will run all the validators defined per attribute (built-in validators and custom validators)
+     *
+     * @returns {Promise<Array.<Promise.PromiseInspection>>} A promise from .reflect().
+     * @private
+     */
+
+  }, {
+    key: "_perAttributeValidators",
+    value: function _perAttributeValidators() {
+      // promisify all attribute invocations
+      const validators = [];
+
+      _.forIn(this.modelInstance.rawAttributes, (rawAttribute, field) => {
+        if (this.options.skip.includes(field)) {
+          return;
+        }
+
+        const value = this.modelInstance.dataValues[field];
+
+        if (value instanceof Utils.SequelizeMethod) {
+          return;
+        }
+
+        if (!rawAttribute._autoGenerated && !rawAttribute.autoIncrement) {
+          // perform validations based on schema
+          this._validateSchema(rawAttribute, field, value);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(this.modelInstance.validators, field)) {
+          validators.push(this._singleAttrValidate(value, field, rawAttribute.allowNull).reflect());
+        }
+      });
+
+      return Promise.all(validators);
+    }
+    /**
+     * Will run all the custom validators defined in the model's options.
+     *
+     * @returns {Promise<Array.<Promise.PromiseInspection>>} A promise from .reflect().
+     * @private
+     */
+
+  }, {
+    key: "_customValidators",
+    value: function _customValidators() {
+      const validators = [];
+
+      _.each(this.modelInstance._modelOptions.validate, (validator, validatorType) => {
+        if (this.options.skip.includes(validatorType)) {
+          return;
+        }
+
+        const valprom = this._invokeCustomValidator(validator, validatorType) // errors are handled in settling, stub this
+        .catch(() => {}).reflect();
+
+        validators.push(valprom);
+      });
+
+      return Promise.all(validators);
+    }
+    /**
+     * Validate a single attribute with all the defined built-in validators and custom validators.
+     *
+     * @private
+     *
+     * @param {*} value Anything.
+     * @param {string} field The field name.
+     * @param {boolean} allowNull Whether or not the schema allows null values
+     *
+     * @returns {Promise} A promise, will always resolve, auto populates error on this.error local object.
+     */
+
+  }, {
+    key: "_singleAttrValidate",
+    value: function _singleAttrValidate(value, field, allowNull) {
+      // If value is null and allowNull is false, no validators should run (see #9143)
+      if ((value === null || value === undefined) && !allowNull) {
+        // The schema validator (_validateSchema) has already generated the validation error. Nothing to do here.
+        return Promise.resolve();
+      } // Promisify each validator
+
+
+      const validators = [];
+
+      _.forIn(this.modelInstance.validators[field], (test, validatorType) => {
+        if (validatorType === 'isUrl' || validatorType === 'isURL' || validatorType === 'isEmail') {
+          // Preserve backwards compat. Validator.js now expects the second param to isURL and isEmail to be an object
+          if (typeof test === 'object' && test !== null && test.msg) {
+            test = {
+              msg: test.msg
+            };
+          } else if (test === true) {
+            test = {};
+          }
+        } // Custom validators should always run, except if value is null and allowNull is false (see #9143)
+
+
+        if (typeof test === 'function') {
+          validators.push(this._invokeCustomValidator(test, validatorType, true, value, field).reflect());
+          return;
+        } // If value is null, built-in validators should not run (only custom validators have to run) (see #9134).
+
+
+        if (value === null || value === undefined) {
+          return;
+        }
+
+        const validatorPromise = this._invokeBuiltinValidator(value, test, validatorType, field); // errors are handled in settling, stub this
+
+
+        validatorPromise.catch(() => {});
+        validators.push(validatorPromise.reflect());
+      });
+
+      return Promise.all(validators).then(results => this._handleReflectedResult(field, value, results));
+    }
+    /**
+     * Prepare and invoke a custom validator.
+     *
+     * @private
+     *
+     * @param {Function} validator The custom validator.
+     * @param {string} validatorType the custom validator type (name).
+     * @param {boolean} optAttrDefined Set to true if custom validator was defined from the attribute
+     * @param {*} optValue value for attribute
+     * @param {string} optField field for attribute
+     *
+     * @returns {Promise} A promise.
+     */
+
+  }, {
+    key: "_invokeCustomValidator",
+    value: function _invokeCustomValidator(validator, validatorType, optAttrDefined, optValue, optField) {
+      let validatorFunction = null; // the validation function to call
+
+      let isAsync = false;
+      const validatorArity = validator.length; // check if validator is async and requires a callback
+
+      let asyncArity = 1;
+      let errorKey = validatorType;
+      let invokeArgs;
+
+      if (optAttrDefined) {
+        asyncArity = 2;
+        invokeArgs = optValue;
+        errorKey = optField;
+      }
+
+      if (validatorArity === asyncArity) {
+        isAsync = true;
+      }
+
+      if (isAsync) {
+        if (optAttrDefined) {
+          validatorFunction = Promise.promisify(validator.bind(this.modelInstance, invokeArgs));
+        } else {
+          validatorFunction = Promise.promisify(validator.bind(this.modelInstance));
+        }
+
+        return validatorFunction().catch(e => this._pushError(false, errorKey, e, optValue, validatorType));
+      }
+
+      return Promise.try(() => validator.call(this.modelInstance, invokeArgs)).catch(e => this._pushError(false, errorKey, e, optValue, validatorType));
+    }
+    /**
+     * Prepare and invoke a build-in validator.
+     *
+     * @private
+     *
+     * @param {*} value Anything.
+     * @param {*} test The test case.
+     * @param {string} validatorType One of known to Sequelize validators.
+     * @param {string} field The field that is being validated
+     *
+     * @returns {Object} An object with specific keys to invoke the validator.
+     */
+
+  }, {
+    key: "_invokeBuiltinValidator",
+    value: function _invokeBuiltinValidator(value, test, validatorType, field) {
+      return Promise.try(() => {
+        // Cast value as string to pass new Validator.js string requirement
+        const valueString = String(value); // check if Validator knows that kind of validation test
+
+        if (typeof validator[validatorType] !== 'function') {
+          throw new Error(`Invalid validator function: ${validatorType}`);
+        }
+
+        const validatorArgs = this._extractValidatorArgs(test, validatorType, field);
+
+        if (!validator[validatorType](valueString, ...validatorArgs)) {
+          throw Object.assign(new Error(test.msg || `Validation ${validatorType} on ${field} failed`), {
+            validatorName: validatorType,
+            validatorArgs
+          });
+        }
+      });
+    }
+    /**
+     * Will extract arguments for the validator.
+     *
+     * @param {*} test The test case.
+     * @param {string} validatorType One of known to Sequelize validators.
+     * @param {string} field The field that is being validated.
+     *
+     * @private
+     */
+
+  }, {
+    key: "_extractValidatorArgs",
+    value: function _extractValidatorArgs(test, validatorType, field) {
+      let validatorArgs = test.args || test;
+      const isLocalizedValidator = typeof validatorArgs !== 'string' && (validatorType === 'isAlpha' || validatorType === 'isAlphanumeric' || validatorType === 'isMobilePhone');
+
+      if (!Array.isArray(validatorArgs)) {
+        if (validatorType === 'isImmutable') {
+          validatorArgs = [validatorArgs, field, this.modelInstance];
+        } else if (isLocalizedValidator || validatorType === 'isIP') {
+          validatorArgs = [];
+        } else {
+          validatorArgs = [validatorArgs];
+        }
+      } else {
+        validatorArgs = validatorArgs.slice(0);
+      }
+
+      return validatorArgs;
+    }
+    /**
+     * Will validate a single field against its schema definition (isnull).
+     *
+     * @param {Object} rawAttribute As defined in the Schema.
+     * @param {string} field The field name.
+     * @param {*} value anything.
+     *
+     * @private
+     */
+
+  }, {
+    key: "_validateSchema",
+    value: function _validateSchema(rawAttribute, field, value) {
+      if (rawAttribute.allowNull === false && (value === null || value === undefined)) {
+        const association = _.values(this.modelInstance.constructor.associations).find(association => association instanceof BelongsTo && association.foreignKey === rawAttribute.fieldName);
+
+        if (!association || !this.modelInstance.get(association.associationAccessor)) {
+          const validators = this.modelInstance.validators[field];
+
+          const errMsg = _.get(validators, 'notNull.msg', `${this.modelInstance.constructor.name}.${field} cannot be null`);
+
+          this.errors.push(new sequelizeError.ValidationErrorItem(errMsg, 'notNull Violation', // sequelizeError.ValidationErrorItem.Origins.CORE,
+          field, value, this.modelInstance, 'is_null'));
+        }
+      }
+
+      if (rawAttribute.type instanceof DataTypes.STRING || rawAttribute.type instanceof DataTypes.TEXT || rawAttribute.type instanceof DataTypes.CITEXT) {
+        if (Array.isArray(value) || _.isObject(value) && !(value instanceof Utils.SequelizeMethod) && !Buffer.isBuffer(value)) {
+          this.errors.push(new sequelizeError.ValidationErrorItem(`${field} cannot be an array or an object`, 'string violation', // sequelizeError.ValidationErrorItem.Origins.CORE,
+          field, value, this.modelInstance, 'not_a_string'));
+        }
+      }
+    }
+    /**
+     * Handles the returned result of a Promise.reflect.
+     *
+     * If errors are found it populates this.error.
+     *
+     * @param {string} field The attribute name.
+     * @param {string|number} value The data value.
+     * @param {Array<Promise.PromiseInspection>} promiseInspections objects.
+     *
+     * @private
+     */
+
+  }, {
+    key: "_handleReflectedResult",
+    value: function _handleReflectedResult(field, value, promiseInspections) {
+      for (const promiseInspection of promiseInspections) {
+        if (promiseInspection.isRejected()) {
+          const rejection = promiseInspection.error();
+          const isBuiltIn = !!rejection.validatorName;
+
+          this._pushError(isBuiltIn, field, rejection, value, rejection.validatorName, rejection.validatorArgs);
+        }
+      }
+    }
+    /**
+     * Signs all errors retaining the original.
+     *
+     * @param {boolean}       isBuiltin   - Determines if error is from builtin validator.
+     * @param {string}        errorKey    - name of invalid attribute.
+     * @param {Error|string}  rawError    - The original error.
+     * @param {string|number} value       - The data that triggered the error.
+     * @param {string}        fnName      - Name of the validator, if any
+     * @param {Array}         fnArgs      - Arguments for the validator [function], if any
+     *
+     * @private
+     */
+
+  }, {
+    key: "_pushError",
+    value: function _pushError(isBuiltin, errorKey, rawError, value, fnName, fnArgs) {
+      const message = rawError.message || rawError || 'Validation error';
+      const error = new sequelizeError.ValidationErrorItem(message, 'Validation error', // sequelizeError.ValidationErrorItem.Origins.FUNCTION,
+      errorKey, value, this.modelInstance, fnName, isBuiltin ? fnName : undefined, isBuiltin ? fnArgs : undefined);
+      error[InstanceValidator.RAW_KEY_NAME] = rawError;
+      this.errors.push(error);
+    }
+  }]);
+
+  return InstanceValidator;
+}();
+/**
+ * @define {string} The error key for arguments as passed by custom validators
+ * @private
+ */
+
+
+InstanceValidator.RAW_KEY_NAME = 'original';
+module.exports = InstanceValidator;
+module.exports.InstanceValidator = InstanceValidator;
+module.exports.default = InstanceValidator;
