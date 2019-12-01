@@ -22,7 +22,7 @@ NOTE: compatible with web but replace `dialectModule: SQLite` with `dialectModul
 import React, { useEffect } from "react";
 import { StyleSheet, Text, View, Platform } from "react-native";
 import * as SQLite from 'expo-sqlite'
-import Sequelize from "expo-sequelize";
+import Sequelize from "rn-sequelize";
 const Op = Sequelize.Op;
 const Model = Sequelize.Model;
 
