@@ -17,28 +17,9 @@ This port to use with react native and expo.
 
 NOTE: compatible with web but replace `dialectModule: SQLite` with `dialectModule: window`, and websql API in browser is limited (check TODO), catch all queries
 
+TODO
 
-## TODO
-
-- [x] ~~Transpile code with babel to compatibility with Webpack and transform-classes plugin~~
-- [x] ~~Clean folders (Delete others dialects)~~
-- [x] ~~Fix parse Date type in browser and react native~~
-- [x] ~~Add support to PRAGMA TABLE_INFO with websql~~
-- [ ] Add support foreing keys with websql using triggers
-- [ ] Add Unit Testing
-
-## Manual testing working Sequelize (5.21.2)
-
-- [x] build
-- [x] destroy
-- [x] find
-- [x] findOne
-- [x] findAll
-- [x] findAndCountAll
-- [x] associations (belongTo, hasMany...)
-- [x] create
-- [x] bulkCreate
-- [ ] Others?
+- [ ] In web use sql.js
 
 ## Contributing
 
