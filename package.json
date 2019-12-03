@@ -66,5 +66,6 @@
     "sqlite",
     "orm",
     "object relational mapper"
-  ]
+  ],
+  "repository": "https://github.com/punisher97/rn-sequelize.git"
 }
