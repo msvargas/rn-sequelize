@@ -21,9 +21,9 @@
   "homepage": "https://sequelize.org/",
   "types": "types",
   "files": [
-    "lib",
+    "dist",
     "types/index.d.ts",
-    "types/lib"
+    "types/dist"
   ],
   "license": "MIT",
   "dependencies": {
