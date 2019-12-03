@@ -20,8 +20,29 @@ NOTE: compatible with web but replace `dialectModule: SQLite` with `dialectModul
 
 ## TODO
 
-- [x] Add support to PRAGMA TABLE_INFO; with websql
+- [x] ~~Transpile code with babel to compatibility with Webpack and transform-classes plugin~~
+- [x] ~~Clean folders (Delete others dialects)~~
+- [x] ~~Fix parse Date type in browser and react native~~
+- [x] ~~Add support to PRAGMA TABLE_INFO with websql~~
 - [ ] Add support foreing keys with websql using triggers
+- [ ] Add Unit Testing
+
+## Manual testing working Sequelize (5.21.2)
+
+- [x] build
+- [x] destroy
+- [x] find
+- [x] findOne
+- [x] findAll
+- [x] findAndCountAll
+- [x] associations (belongTo, hasMany...)
+- [x] create
+- [x] bulkCreate
+- [ ] Others?
+
+## Contributings
+
+- Open Source!
 
 ## Example
 
@@ -90,6 +111,7 @@ const styles = StyleSheet.create({
 });
 ```
 
+## Thanks to Sequelize
 
 # Sequelize
 
