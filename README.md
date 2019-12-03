@@ -40,7 +40,7 @@ NOTE: compatible with web but replace `dialectModule: SQLite` with `dialectModul
 - [x] bulkCreate
 - [ ] Others?
 
-## Contributings
+## Contributing
 
 - Open Source!
 
