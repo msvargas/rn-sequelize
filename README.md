@@ -15,7 +15,13 @@
 
 This port to use with react native and expo.
 
-NOTE: compatible with web but replace `dialectModule: SQLite` with `dialectModule: window`, and websql API in browser is limited, catch all queries
+NOTE: compatible with web but replace `dialectModule: SQLite` with `dialectModule: window`, and websql API in browser is limited (check TODO), catch all queries
+
+
+## TODO
+
+- [x] Add support to PRAGMA TABLE_INFO; with websql
+- [ ] Add support foreing keys with websql using triggers
 
 ## Example
 
@@ -84,10 +90,6 @@ const styles = StyleSheet.create({
 });
 ```
 
-## TODO
-
-- [x] Add support to PRAGMA TABLE_INFO; with websql
-- [] Add support foreing keys with websql using triggers
 
 # Sequelize
 
