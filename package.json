@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "build": "babel lib --out-dir dist --copy-files --source-maps inline",
-    "prebuild": "if exist dist RMDIR /Q/S dist 2>nul",
+    "prebuild": "rm -rf dist && mkdir dist",
     "publish": "npm publish --access public"
   },
   "bugs": {
@@ -45,8 +45,7 @@
     "toposort-class": "^1.0.1",
     "util": "^0.12.1",
     "uuid": "^3.3.3",
-    "validator": "^10.11.0",
-    "wkx": "^0.4.8"
+    "validator": "^10.11.0"
   },
   "devDependencies": {
     "@babel/cli": "^7.7.4",
